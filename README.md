@@ -1,93 +1,156 @@
-# PdfConverter
+# HTML to PDF Converter (.NET)
 
+A high-performance HTML to PDF converter built with .NET 8 — no browser engine, no WebKit, no Chromium. Converts HTML with CSS styling and LaTeX math formulas to vector PDF using a fully managed pipeline.
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Architecture
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.osl.team/opl-rnd/pdfconverter.git
-git branch -M main
-git push -uf origin main
+HTML input
+  -> AngleSharp         (parse HTML into DOM tree)
+  -> Inline Style Parser (extract CSS properties — no slow GetComputedStyle)
+  -> Layout Engine       (block/inline flow, word wrap, font fallback)
+  -> CSharpMath          (measure & render LaTeX from <span class="math-tex">)
+  -> SkiaSharp           (SKDocument -> vector PDF with selectable text)
+  -> PDF output
 ```
 
-## Integrate with your tools
+## Tech Stack
 
-- [ ] [Set up project integrations](https://gitlab.osl.team/opl-rnd/pdfconverter/-/settings/integrations)
+| Package | Version | License | Role |
+|---------|---------|---------|------|
+| [AngleSharp](https://github.com/AngleSharp/AngleSharp) | 0.17.1 | MIT | HTML/DOM parser |
+| [AngleSharp.Css](https://github.com/AgleSharp/AngleSharp.Css) | 0.17.0 | MIT | CSS engine (body-level styles) |
+| [SkiaSharp](https://github.com/mono/SkiaSharp) | 3.119.2 | MIT | PDF rendering via `SKDocument`/`SKCanvas` |
+| [CSharpMath.SkiaSharp](https://github.com/verybadcat/CSharpMath) | 1.0.0-pre.1 | MIT | LaTeX math formula rendering |
 
-## Collaborate with your team
+All dependencies are MIT-licensed. No commercial licenses required.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Features
 
-## Test and Deploy
+- **No browser engine** — pure C# pipeline, no Chromium/WebKit/Puppeteer dependency
+- **LaTeX math rendering** — supports `<span class="math-tex">\(...\)</span>` notation with fractions, matrices, integrals, Greek letters, and more
+- **Bengali/Indic font fallback** — automatic detection of non-Latin text with fallback to Nirmala UI via `SKFontManager.MatchCharacter()`
+- **Three input modes** — HTML string, file upload, or URL
+- **Configurable output** — page size (A4/A3/A5/Letter/Legal), margins, landscape orientation
+- **Vector PDF** — text remains selectable, math renders as vector graphics
+- **Performance optimized** — font caching, math pre-measurement, inline style parser
 
-Use the built-in continuous integration in GitLab.
+## Performance
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Benchmarked with a 426-formula engineering exam paper (Bengali + English + LaTeX):
 
-***
+| Metric | Value |
+|--------|-------|
+| Total conversion time | **~970ms** |
+| Parse (AngleSharp) | 249ms |
+| Math pre-measure (532 formulas) | 294ms |
+| Layout (2992 boxes) | 136ms |
+| PDF render | 288ms |
+| Output PDF size | 4.1 MB |
 
-# Editing this README
+### Optimization history
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+| Version | Time | Change |
+|---------|------|--------|
+| Initial | 12,935ms | Baseline with `GetComputedStyle` per element |
+| + Font caching | 11,929ms | Cache `SKTypeface` instances |
+| + Skip `IsDisplayNone` | 5,940ms | Merge display check into style resolution |
+| + Inline style parser | 1,002ms | Replace `GetComputedStyle` with string split parser |
+| + Math cache | 972ms | Pre-measure formulas, eliminate duplicate work |
 
-## Suggestions for a good README
+## Getting Started
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Prerequisites
 
-## Name
-Choose a self-explaining name for your project.
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- Windows (for Nirmala UI Bengali font fallback) — Linux/macOS work with different fallback fonts
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Run
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+git clone https://github.com/Naieem-55/html-to-pdf-.NET-.git
+cd html-to-pdf-.NET-
+dotnet run
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Navigate to `https://localhost:<port>/Pdf` in your browser.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Usage
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+**Web UI**: Paste HTML, upload a `.html` file, or enter a URL. Configure page size, margins, and orientation. Click "Convert to PDF".
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+**Programmatic**:
+
+```csharp
+var converter = new FreeHtmlToPdfConverter();
+
+// From HTML string
+byte[] pdf = converter.ConvertFromHtmlString("<h1>Hello</h1><p>$E=mc^2$</p>");
+
+// From file
+byte[] pdf = converter.ConvertFromFile("input.html");
+
+// With settings
+byte[] pdf = converter.ConvertFromHtmlString(html, new PdfPageSettings
+{
+    PageSize = PageSize.A4,
+    Landscape = false,
+    MarginMm = 10
+});
+```
+
+## LaTeX Support
+
+Math formulas are detected from `<span class="math-tex">\(...\)</span>` elements (common in MathJax/KaTeX-based HTML) and from `$...$` / `$$...$$` delimiters in text.
+
+Supported LaTeX:
+
+| Category | Examples |
+|----------|---------|
+| Fractions | `\frac{a}{b}` |
+| Matrices | `\begin{bmatrix}a&b\\c&d\end{bmatrix}` |
+| Integrals | `\int_0^\infty`, `\iint`, `\oint` |
+| Summations | `\sum_{k=1}^{n}`, `\prod` |
+| Greek | `\alpha`, `\beta`, `\gamma`, `\Omega` |
+| Roots | `\sqrt{x}`, `\sqrt[3]{x}` |
+| Limits | `\lim_{x\to 0}` |
+| Accents | `\hat{x}`, `\vec{v}`, `\dot{x}` |
+| Environments | `pmatrix`, `bmatrix`, `vmatrix`, `cases` |
+
+Unsupported commands (`\underset`, `\overset`, `\operatorname`) are automatically converted to compatible equivalents.
+
+## Project Structure
+
+```
+html-to-pdf-.NET-/
+  Controllers/
+    PdfController.cs          # Web API: convert endpoint with timing logs
+  Models/
+    ConvertViewModel.cs       # Form model: source, page settings
+  Services/
+    FreeHtmlToPdfConverter.cs  # Core: parse -> layout -> render pipeline
+    FontCache.cs              # Typeface caching + Bengali fallback
+    MathCache.cs              # LaTeX pre-measurement cache
+  Views/
+    Pdf/Index.cshtml           # Web UI: HTML editor, file upload, URL input
+  plan.md                      # Future optimization roadmap
+```
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+See [plan.md](plan.md) for the full optimization and accuracy roadmap. Key items:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+**Speed** (target: ~400-500ms)
+- Cache `SKPicture` for math render — avoid recreating `MathPainter` during PDF draw
+- Reuse `SKPaint`/`SKFont` across render loop — reduce 20K+ object allocations
+- Drop `AngleSharp.Css` dependency — replace with regex-based `<style>` parser
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+**Layout accuracy**
+- CSS `float: left` + `width: %` — side-by-side question numbering
+- CSS `display: inline-block` — MCQ options in grid layout
+- `page-break-before: always` — correct multi-page breaks
+- HarfBuzzSharp integration — proper Bengali conjunct rendering
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT

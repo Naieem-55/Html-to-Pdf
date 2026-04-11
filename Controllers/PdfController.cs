@@ -92,6 +92,104 @@ public class PdfController : Controller
         }
     }
 
+    [HttpPost]
+    [RequestSizeLimit(200 * 1024 * 1024)]
+    public async Task<IActionResult> BatchConvert(ConvertViewModel model)
+    {
+        if (model.HtmlFiles == null || model.HtmlFiles.Count == 0)
+        {
+            model.ErrorMessage = "Please upload one or more HTML files.";
+            return View("Index", model);
+        }
+
+        var settings = new PdfPageSettings
+        {
+            PageSize = model.PageSize,
+            Landscape = model.Landscape,
+            MarginMm = model.MarginMm
+        };
+
+        var totalSw = Stopwatch.StartNew();
+
+        // Save uploaded files to temp
+        var tempFiles = new List<(string tempPath, string originalName)>();
+        foreach (var file in model.HtmlFiles)
+        {
+            if (file.Length == 0) continue;
+            var tempPath = Path.Combine(Path.GetTempPath(), $"batch_{Guid.NewGuid():N}.html");
+            await using (var stream = System.IO.File.Create(tempPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+            tempFiles.Add((tempPath, file.FileName));
+        }
+
+        // Convert all files in parallel — each core processes a different document
+        var results = new BatchResultItem[tempFiles.Count];
+        var pdfOutputs = new byte[tempFiles.Count][];
+
+        Parallel.For(0, tempFiles.Count,
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            i =>
+            {
+                var (tempPath, originalName) = tempFiles[i];
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    var converter = new FreeHtmlToPdfConverter();
+                    var pdf = converter.ConvertFromFile(tempPath, settings);
+                    sw.Stop();
+                    pdfOutputs[i] = pdf;
+                    results[i] = new BatchResultItem
+                    {
+                        FileName = Path.GetFileNameWithoutExtension(originalName) + ".pdf",
+                        ElapsedMs = sw.ElapsedMilliseconds,
+                        SizeKb = pdf.Length / 1024.0,
+                        Success = true
+                    };
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    pdfOutputs[i] = Array.Empty<byte>();
+                    results[i] = new BatchResultItem
+                    {
+                        FileName = originalName,
+                        ElapsedMs = sw.ElapsedMilliseconds,
+                        Success = false,
+                        Error = ex.Message
+                    };
+                }
+                finally
+                {
+                    try { System.IO.File.Delete(tempPath); } catch { }
+                }
+            });
+
+        totalSw.Stop();
+
+        var successCount = results.Count(r => r.Success);
+        _logger.LogInformation(
+            "Batch conversion: {Success}/{Total} files, total={TotalMs}ms, cores={Cores}",
+            successCount, results.Length, totalSw.ElapsedMilliseconds, Environment.ProcessorCount);
+
+        // Package all PDFs into a ZIP
+        using var zipStream = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create, true))
+        {
+            for (int i = 0; i < results.Length; i++)
+            {
+                if (!results[i].Success || pdfOutputs[i].Length == 0) continue;
+                var entry = archive.CreateEntry(results[i].FileName, System.IO.Compression.CompressionLevel.Fastest);
+                using var entryStream = entry.Open();
+                entryStream.Write(pdfOutputs[i]);
+            }
+        }
+
+        zipStream.Seek(0, SeekOrigin.Begin);
+        return File(zipStream.ToArray(), "application/zip", "converted_pdfs.zip");
+    }
+
     private const string SampleHtml = """
         <!DOCTYPE html>
         <html>

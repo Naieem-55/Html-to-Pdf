@@ -36,6 +36,8 @@ All dependencies are MIT-licensed. No commercial licenses required.
 - **CSS layout support** — `float:left`, `display:inline-block`, `width:%`, `page-break-before:always`, margin collapsing, shorthand `margin`/`padding`
 - **Stylesheet parsing** — extracts class rules AND descendant selectors (`.parent .child`) from `<style>` blocks
 - **Font scaling** — reads `data-textfontsize` and `data-eqfontsize` body attributes for compact exam paper density
+- **Inline image rendering** — decodes and renders `data:image/png;base64,...` images inline with text
+- **Unicode normalization** — typographic quotes (`''""`), dashes (`–—`), and NBSP auto-converted to ASCII
 - **Font fallback** — automatic Arial -> Nirmala UI for Bengali/Indic scripts
 - **Batch conversion** — convert multiple HTML files in parallel using all CPU cores, output as ZIP
 - **Four input modes** — HTML editor, single file upload, URL, or batch file upload
@@ -189,9 +191,9 @@ html-to-pdf-.NET-/
 
 ## Known Limitations
 
-- No image embedding (shows `[alt text]` placeholder)
 - CSharpMath doesn't support `\newcommand`, `\def`, or `\text{...$...$}`
 - Two-column layout only triggers for `.questionPages` container
+- External image URLs (`http://...`) not fetched — only `data:image/...;base64` and `[alt]` placeholder
 
 ## License
 

@@ -68,10 +68,13 @@ public sealed class FontCache
 
     /// <summary>
     /// Get a cached SKShaper for HarfBuzz text shaping. DO NOT dispose — owned by the cache.
+    /// Keyed by typeface identity (family + style), not just family name,
+    /// because different weights/styles have different glyph tables.
     /// </summary>
     public SKShaper GetShaper(SKTypeface typeface)
     {
-        return _shaperCache.GetOrAdd(typeface.FamilyName, _ => new SKShaper(typeface));
+        var key = $"{typeface.FamilyName}:{typeface.FontWeight}:{typeface.FontSlant}";
+        return _shaperCache.GetOrAdd(key, _ => new SKShaper(typeface));
     }
 
     private SKTypeface ResolveForChar(char ch, bool bold, bool italic)

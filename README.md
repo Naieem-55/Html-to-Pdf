@@ -1,15 +1,18 @@
 <p align="center">
-  <h1 align="center">HtmlToPdf</h1>
-  <p align="center">
-    A high-performance, native PDF rendering engine for .NET — no browser engine required.
-    <br />
-    <br />
-    <a href="#getting-started"><strong>Get Started</strong></a>
-    &nbsp;&middot;&nbsp;
-    <a href="#features"><strong>Features</strong></a>
-    &nbsp;&middot;&nbsp;
-    <a href="#api-reference"><strong>API Reference</strong></a>
-  </p>
+  <img src="assets/banner.png" alt="HTML to PDF" width="600" />
+</p>
+
+<h1 align="center">HtmlToPdf</h1>
+
+<p align="center">
+  <strong>A high-performance, native PDF rendering engine for .NET — no browser engine required.</strong>
+  <br />
+  <br />
+  <a href="#getting-started"><strong>Get Started</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#features"><strong>Features</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#api-reference"><strong>API Reference</strong></a>
 </p>
 
 <br />
